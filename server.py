@@ -28,11 +28,13 @@ def listen(socket):
     server_socket.listen(5)
 
     # print out that we are listening
-    print("listening on: \n    IP:   " + IP + "\n    PORT: " + str(PORT))
+    print("                                            listening on:")
+    print("                                                 IP:   " + IP)
+    print("                                                 PORT: " + str(PORT))
 
     # accept connections from outside
     (connection, client_address) = server_socket.accept()
-    print("\nconnected!")
+    print("\n                                            connected!\n")
 
     # create a list that will hold the data collected
     # from the connected devices
@@ -63,9 +65,7 @@ def listen(socket):
         except socket.error as e:
             print(e)
 
-        finally:
-            # clean up the connection and close it
-            server_socket.close()
+
 
 
 
