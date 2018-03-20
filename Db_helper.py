@@ -49,8 +49,10 @@ class DbHelper:
         # build the strings that will be used to create the tables
         plant_bed_string = "CREATE TABLE IF NOT EXISTS Plant_beds ( "
         plant_bed_string += "plant_bed_id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        plant_bed_string += "name Text, "
-        plant_bed_string += "location TEXT, "
+        plant_bed_string += "name TEXT, "
+        plant_bed_string += "longitude TEXT, "
+        plant_bed_string += "latitude TEXT, "
+        plant_bed_string += "time_zone TEXT, "
         plant_bed_string += "average_sunlight TEXT );"
 
         plant_string = "CREATE TABLE IF NOT EXISTS Plants ( "
@@ -220,10 +222,10 @@ class DbHelper:
     # ==============================================================
     # creates a new plant bed
     # returns the id of the newly created bed
-    def create_plant_bed(self, name, location, average_sunlight):
-        insert_string =  "INSERT INTO Plant_beds(name, location, average_sunlight) VALUES (?, ?, ?);"
+    def create_plant_bed(self, name, longitude, latitude, time_zone, average_sunlight):
+        insert_string =  "INSERT INTO Plant_beds(name, longitude, latitude, time_zone, average_sunlight) VALUES (?, ?, ?, ?, ?);"
 
-        params = [name, location, average_sunlight]
+        params = [name, longitude, latitude, time_zone, average_sunlight]
 
         # execute query
         try:
@@ -255,10 +257,10 @@ class DbHelper:
 
     # ==============================================================
     # changes the location of the plant bed
-    def change_plant_bed_location(self, plant_bed_id, location):
-        update_string = "UPDATE Plant_beds SET location = ? WHERE plant_bed_id = ?"
+    def change_plant_bed_location(self, plant_bed_id, longitude, latitude):
+        update_string = "UPDATE Plant_beds SET longitude = ?, latitude = ? WHERE plant_bed_id = ?"
 
-        params = [location, plant_bed_id]
+        params = [longitude, latitude, plant_bed_id]
 
         # execute the query
         self.__execute_insert_query(update_string, params)
