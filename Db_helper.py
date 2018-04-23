@@ -13,7 +13,7 @@ class DbHelper:
         # create the tables if they do not exist
         self.__create_tables()
 
-        print("\nConnected to the database\n")
+        print("Connected to the database")
     # ==============================================================
 
     # ==============================================================
@@ -53,7 +53,7 @@ class DbHelper:
         plant_bed_string += "longitude TEXT, "
         plant_bed_string += "latitude TEXT, "
         plant_bed_string += "time_zone TEXT, "
-        plant_bed_string += "average_sunlight TEXT );"
+        plant_bed_string += "average_sunlight REAL );"
 
         plant_string = "CREATE TABLE IF NOT EXISTS Plants ( "
         plant_string += "mac_address TEXT PRIMARY KEY NOT NULL, "
@@ -96,7 +96,6 @@ class DbHelper:
         # info to be stored is its mac address
 
         # ADD VALIDATION OF THE MAC ADDRESS HERE LATER
-
         # set up the string that will be executed
         insert_string = "INSERT INTO Plants VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?, NULL) "
         # insert_string += "SELECT mac_address WHERE NOT EXISTS(SELECT 1 FROM Plants WHERE mac_address = ?);"
@@ -197,9 +196,21 @@ class DbHelper:
     # ==============================================================
 
     # ==============================================================
+    # unlinks a plant from the plant bed it was linked too
+    def unlink_plant_from_bed(self, mac_address):
+        update_String = "UPDATE Plants SET plant_bed_id = NULL WHERE mac_address = ?"
+
+        param = [mac_address]
+
+        # execute the query
+        self.__execute_insert_query(update_String, param)
+    # ==============================================================
+
+    # ==============================================================
     # searches through the database to see if the plant
     # already exist
     def search_for_plant(self, mac_address):
+
         ret_val = False
         # create the search string
         search_string = "SELECT * FROM Plants WHERE mac_address = ?;"
@@ -222,10 +233,10 @@ class DbHelper:
     # ==============================================================
     # creates a new plant bed
     # returns the id of the newly created bed
-    def create_plant_bed(self, name, longitude, latitude, time_zone, average_sunlight):
+    def create_plant_bed(self, name, longitude, latitude, time_zone):
         insert_string =  "INSERT INTO Plant_beds(name, longitude, latitude, time_zone, average_sunlight) VALUES (?, ?, ?, ?, ?);"
 
-        params = [name, longitude, latitude, time_zone, average_sunlight]
+        params = [name, longitude, latitude, time_zone, "NULL"]
 
         # execute query
         try:
@@ -267,8 +278,124 @@ class DbHelper:
     # ==============================================================
 
     # ==============================================================
+    # changes the time zone of a plant bed
+    def change_plant_bed_time_zone(self, plant_bed_id, time_zone):
+        update_string = "UPDATE Plant_beds SET time_zone = ? WHERE plant_bed_id = ?"
+
+        params = [time_zone, plant_bed_id]
+
+        # execute the query
+        self.__execute_insert_query(update_string, params)
+    # ==============================================================
+
+    # ==============================================================
+    # updates the average sunlight for a plant bed
+    # takes in the current photon's mac address that just send sensor
+    # data and the light value it just sent
+    def update_plant_bed_average_sunlight(self, plant_mac, light):             # TEST THIS SHIT ASAP SDL;KFJA;LSKDJFLA;KSDJF;LAKSJDF;LASKJDF;LKASJDF;
+        # 1st query for the plant bed associated with the passed in
+        # mac address. (FROM Plants, WHERE mac_address = plant_mac)
+        # construct the query string for the plant table
+        find_plant_bed_id = "SELECT DISTINCT plant_bed_id FROM Plants WHERE mac_address = ?"
+        param = [plant_mac]
+
+        # construct the query string for the plant bed table
+        find_average_sunlight = "SELECT average_sunlight FROM Plant_beds WHERE plant_bed_id = ?"
+
+        # construct the update query string
+        update_string = "UPDATE Plant_beds SET average_sunlight = ? WHERE plant_bed_id = ?"
+
+        # open a connection and preform the queries
+        try:
+            conn = sqlite3.connect(self.__connection_string)
+            cursor = conn.cursor()
+
+            # execute the query to find the plant bed id
+            # there should only be one row since we are only
+            # grabbing the plant bed id
+            cursor.execute(find_plant_bed_id, param)
+            plant_bed_id = cursor.fetchone()
+            # reassign what the parameter is to be passed in for the next query
+            param = [plant_bed_id[0]]
+
+            # if the first query did find a plant bed that the plant is linked to
+            if plant_bed_id[0] != None:
+                # now preform the 2nd query to find the average sunlight
+                # based on the found plant bed id
+                cursor.execute(find_average_sunlight, param)
+                average_sunlight = cursor.fetchone()
+
+                # close the connection for now with the db
+                conn.close()
+
+                average_sunlight = float(average_sunlight[0])
+                # now check the value of the average sunlight for the plant bed
+                # if it is zero, then this is a new plant bed just recently created
+                # by the user. so just assign the new light value to the average sunlight
+                if average_sunlight == None:
+                    # reassign the param to be passed in with the update query
+                    param = [light, plant_bed_id[0]]
+
+                    # execute the update query
+                    self.__execute_insert_query(update_string, param)
+
+
+                elif average_sunlight >= 0:
+                    # find the new average sunlight
+                    new_average = average_sunlight + light
+                    new_average = new_average / 2.0
+
+                    print("average sunlight: " + str(new_average))
+
+                    # reassign the param to be passed in with the update query
+                    param = [new_average, plant_bed_id[0]]
+
+                    # execute the update query
+                    self.__execute_insert_query(update_string, param)
+
+                    # return TRUE if update was successful
+                    return True
+
+            # the first query found no linked plant beds
+            else:
+                conn.close()
+                return False
+
+        except Error as e:
+            print("\n" + str(e) + "\n")
+    # ==============================================================
+
+    # ==============================================================
     # adds all the sensor readings from the Arduino
-    # takes in a list of the information about the photon: mac address,
+    # takes =======================================================
+    # returns a string containing all the plant bed names
+    def get_plant_bed_names(self):
+        # construct the query strings
+        plant_bed_String = "SELECT name, plant_bed_id  FROM Plant_beds"
+
+        # open a connection and preform the query
+        try:
+            conn = sqlite3.connect(self.__connection_string)
+            cursor = conn.cursor()
+
+            cursor.execute(plant_bed_String)
+
+            #grab the rows of the plant bed names
+            bed_rows = cursor.fetchall()
+
+            # close the connection
+            conn.close()
+
+            # return the rows found
+            return bed_rows
+
+        except Error as e:
+            print(e)
+
+    # ==============================================================
+    # ==============================================================
+    # returns a dictionary of all of the data
+    # from the plant anin a list of the information about the photon: mac address,
     # temperature, humidity, light, moisture, and time stamp.
     def add_sensor_reading(self, type, time_stamp, reading, mac):
         insert_string = "INSERT INTO Sensor_readings(type_of_reading, time_stamp, reading, plant_mac_address) VALUES(?, ?, ?, ?);"
@@ -293,33 +420,36 @@ class DbHelper:
     # ==============================================================
 
     # ==============================================================
-    # returns a dictionary of all of the data
-    # from the plant and plant bed
-    # tables so that the VURA can use it
-    def get_plant_and_bed_data(self):
+    # grabs all the data related to one plant bed (plant bed info
+    # and all of the plants related to the bed + their info) used for
+    # the tables so that the VURA can use it
+    def get_plant_and_bed_data(self, plant_Bed_id):
         # construct the query strings
-        plant_string = "SELECT * FROM Plants"
-        bed_string =  "SELECT * FROM Plant_beds"
+        plant_string = "SELECT * FROM Plants WHERE plant_bed_id = ?"
+
+        bed_string =  "SELECT * FROM Plant_beds WHERE plant_bed_id = ?"
+
+        params = [plant_Bed_id]
 
         # open a connection and preform both queries
         try:
             conn = sqlite3.connect(self.__connection_string)
             cursor = conn.cursor()
 
-            cursor.execute(plant_string)
+            cursor.execute(plant_string, params)
             # grab the rows for the plants
             plant_rows = cursor.fetchall()
             # ----------------------------------
-            cursor.execute(bed_string)
+            cursor.execute(bed_string, params)
             # grab the rows for the beds
             bed_rows = cursor.fetchall()
 
-            #close the connection
+            # close the connection
             conn.close()
 
 
-            # create a dictionary to store the data
-            info = {'plants': plant_rows, 'beds': bed_rows}
+            # create a list size 2 with each element being a row
+            info = [plant_rows, bed_rows]
 
             return info
         except Error as e:
@@ -327,12 +457,32 @@ class DbHelper:
     # ==============================================================
 
     # ==============================================================
-    # this function takes in all of the data for all the sensor
-    # and stores them into the sensor reading data table
-    # def store_sensor_data
+    # this function grabs the plants that are not linked to any of
+    # the plant beds. They should be presented in a menu
+    def get_lost_plants(self):
+
+        # construct the query string
+        plant_string = "SELECT * FROM Plants Where plant_bed_id IS NULL"
+
+
+        # open a connection and preform the query
+        try:
+            conn = sqlite3.connect(self.__connection_string)
+            cursor = conn.cursor()
+
+            # execute the query
+            cursor.execute(plant_string)
+
+            # grab all the rows returned
+            plant_rows = cursor.fetchall()
+
+            # close the connection
+            conn.close()
+
+            return plant_rows
+        except Error as e:
+            print(e)
     # ==============================================================
-
-
 
     # ==============================================================
     # executes a query on the database based off
